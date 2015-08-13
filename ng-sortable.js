@@ -25,43 +25,37 @@
 
 
 	angular.module('ng-sortable', [])
-		.constant('ngSortableVersion', '0.3.7')
-		.constant('ngSortableConfig', {})
-		.directive('ngSortable', ['$parse', 'ngSortableConfig', function ($parse, ngSortableConfig) {
+		.constant('version', '0.3.7')
+		.directive('ngSortable', ['$parse', function ($parse) {
 			var removed,
 				nextSibling;
-
-
 
 			// Export
 			return {
 				restrict: 'AC',
-				scope: { ngSortable: "=?" },
 				link: function (scope, $el, attrs) {
 					
 					function getSource(el) {
+						// var scope = angular.element(el).scope();
 						var ngRepeat = [].filter.call(el.childNodes, function (node) {
 							return (
 									(node.nodeType === 8) &&
 									(node.nodeValue.indexOf('ngRepeat:') !== -1)
 								);
 						})[0];
-		
+
 						if (!ngRepeat) {
 							// Without ng-repeat
 							return null;
 						}
-		
+
 						// tests: http://jsbin.com/kosubutilo/1/edit?js,output
 						ngRepeat = ngRepeat.nodeValue.match(/ngRepeat:\s*(?:\(.*?,\s*)?([^\s)]+)[\s)]+in\s+([^\s|]+)/);
-		
+
 						var itemExpr = $parse(ngRepeat[1]);
 						var itemsExpr = $parse(ngRepeat[2]);
-		
+
 						return {
-							item: function (el) {
-								return itemExpr(angular.element(el).scope());
-							},
 							items: function () {
 								return itemsExpr(scope);
 							}
@@ -69,9 +63,9 @@
 					}
 
 					var el = $el[0],
-						options = angular.extend(scope.ngSortable || {}, ngSortableConfig),
+						ngSortable = attrs.ngSortable,
+						options = scope.$eval(ngSortable) || {},
 						source = getSource(el),
-						watchers = [],
 						sortable
 					;
 
@@ -79,9 +73,9 @@
 					function _emitEvent(/**Event*/evt, /*Mixed*/item) {
 						var name = 'on' + evt.type.charAt(0).toUpperCase() + evt.type.substr(1);
 
-						/* jshint expr:true */
+						/* jshint expr:true */	
 						options[name] && options[name]({
-							model: item || source && source.item(evt.item),
+							model: item || source && source.items()[evt.newIndex],
 							models: source && source.items(),
 							oldIndex: evt.oldIndex,
 							newIndex: evt.newIndex
@@ -157,29 +151,27 @@
 					}));
 
 					$el.on('$destroy', function () {
-						angular.forEach(watchers, function (/** Function */unwatch) {
-							unwatch();
-						});
 						sortable.destroy();
-						watchers = null;
 						sortable = null;
 						nextSibling = null;
 					});
 
-					angular.forEach([
-						'sort', 'disabled', 'draggable', 'handle', 'animation',
-						'onStart', 'onEnd', 'onAdd', 'onUpdate', 'onRemove', 'onSort'
-					], function (name) {
-						watchers.push(scope.$watch('ngSortable.' + name, function (value) {
-							if (value !== void 0) {
-								options[name] = value;
+					if (ngSortable && !/{|}/.test(ngSortable)) { // todo: ugly
+						angular.forEach([
+							'sort', 'disabled', 'draggable', 'handle', 'animation',
+							'onStart', 'onEnd', 'onAdd', 'onUpdate', 'onRemove', 'onSort'
+						], function (name) {
+							scope.$watch(ngSortable + '.' + name, function (value) {
+								if (value !== void 0) {
+									options[name] = value;
 
-								if (!/^on[A-Z]/.test(name)) {
-									sortable.option(name, value);
+									if (!/^on[A-Z]/.test(name)) {
+										sortable.option(name, value);
+									}
 								}
-							}
-						}));
-					});
+							});
+						});
+					}
 				}
 			};
 		}]);
