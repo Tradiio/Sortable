@@ -82,7 +82,7 @@
 
 						/* jshint expr:true */
 						options[name] && options[name]({
-							model: item || (typeof source === 'object' && source[evt.newIndex]),
+							model: item || (source !== null && source[evt.newIndex]),
 							models: source,
 							oldIndex: evt.oldIndex,
 							newIndex: evt.newIndex
